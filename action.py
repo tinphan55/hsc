@@ -5,12 +5,12 @@ from sir import *
 
 # Chạy từ 2h50
 
-get_market_price_port_mrChi()
-# update_tbthpopenportsummary(name_file = None)
-update_tbthpopenportsummary(name_file = '08.12.2023')
-# report_inav(start_date ='2021-05-20')
+# get_market_price_port_mrChi()
+update_tbthpopenportsummary(name_file = None)
+# update_tbthpopenportsummary(name_file = '11.12.2023')
+report_inav(start_date ='2021-05-20')
 # filter_discount_stock('2023-09-11')
-sector_data_import()
+# sector_data_import()
 
 
 
