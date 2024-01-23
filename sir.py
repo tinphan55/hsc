@@ -22,6 +22,19 @@ def filter_discount_stock(date):
     sheet_ranking_discount_price=sheet[1]
     sheet_ranking_discount_price.set_dataframe(df_final,(1,1))
     sheet_ranking_discount_price.update_value('I1',date_str)
-    print('đẫ update bảng discount')
+    print('đã update bảng discount')
 
 
+date = '2023-01-01'
+query_get_data = f"select ticker,date, close, volume from portfolio_stockpricefilter where date >= '{date}';"
+df_stock = postgres.read_sql_to_df(1,query_get_data) 
+df_stock['date'] = df_stock['date'].dt.date   
+df_average = df_stock.groupby('ticker')['volume'].mean()
+df_average = df_average.to_frame()   
+df_average = df_average.reset_index()
+df = pd.read_csv('margin.csv')
+columns_to_drop = ['modified_at', 'user_created_id','ranking', 'exchanges','created_at']  
+df = df.drop(columns=columns_to_drop)   
+
+merged_df = pd.merge(df_average, df, left_on='ticker', right_on='stock', how='left')
+merged_df.to_csv('volume_list_margin.csv', index=False)

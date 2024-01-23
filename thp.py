@@ -1,4 +1,6 @@
 from update_data import *
+import requests 
+from bs4 import BeautifulSoup
 
 
 def get_number_stock_listed(stock):
@@ -73,7 +75,9 @@ def open_file_pandas(name_file):
             df['DATE'] = date
             df['date_receive'] = define_date_stock_on_account(date)
             for field in ['EXECUTED PRICE', 'EXECUTED QTY', 'CONSIDERATION']:
-                df[field] = df[field].str.replace(',', '')  # Loại bỏ dấu phẩy ngăn cách phần ngàn
+            # Kiểm tra và chỉ thực hiện replace trên chuỗi
+                if df[field].dtype == 'O':  # Kiểm tra xem cột có kiểu dữ liệu là Object (chuỗi) hay không
+                    df[field] = df[field].str.replace(',', '') # Loại bỏ dấu phẩy ngăn cách phần ngàn
             stock_set.update(df['STOCK'].unique())  # Thêm danh sách các mã cổ phiếu vào set
         except FileNotFoundError:
             pass  # Bỏ qua nếu không tìm thấy tệp, tiếp tục kiểm tra các đường dẫn khác
@@ -206,16 +210,26 @@ def update_nav_history(df_account,df_port, date):
                 insert_query = f"INSERT INTO tbnavhistoryaccount (date, account,stock_value, cashbalance, nav) VALUES ('{date}', '{account}', {stock_value}, {cashbalance}, {nav})"
                 postgres.execute_query(0, insert_query)
 
+def get_stock_market_price(stock):    
+    linkbase= 'https://www.cophieu68.vn/quote/summary.php?id=' + stock 
+    r =requests.get(linkbase)    
+    soup = BeautifulSoup(r.text,'html.parser')
+    div_tag = soup.find('div', id='stockname_close')    
+    return float(div_tag.text)*1000                
+
 def update_market_price_port ():
     date = datetime.datetime.now().date()
     query_get_port = 'select * from tbthpopenportsummary'
     df_port = postgres.read_sql_to_df(0,query_get_port)
     if len(df_port)>0:
-        query_get_price= f"select * from portfolio_stockpricefilter where date = '{date.strftime('%Y-%m-%d')}' "
-        df_math_price = postgres.read_sql_to_df(1,query_get_price)
-        ticker_to_close = df_math_price.set_index('ticker')['close'].to_dict()
+        #dùng database
+        # query_get_price= f"select * from portfolio_stockpricefilter where date = '{date.strftime('%Y-%m-%d')}' "
+        # df_math_price = postgres.read_sql_to_df(1,query_get_price)
+        # ticker_to_close = df_math_price.set_index('ticker')['close'].to_dict()
         # Cập nhật cột matchprice của df_port bằng cột close từ df_math_price
-        df_port['matchprice'] = df_port['stocksymbol'].map(ticker_to_close)*1000
+        # df_port['matchprice'] = df_port['stocksymbol'].map(ticker_to_close)*1000
+        #dùng hàm cổ phiếu 68
+        df_port['matchprice'] = df_port['stocksymbol'].apply(get_stock_market_price)
         query_get_divident = f"select * from tbthpcashdivident where date >'2022-07-22' "
         df_divident = postgres.read_sql_to_df(0,query_get_divident) 
         df_divident = df_divident.groupby('stocksymbol').sum(numeric_only=True).reset_index()
