@@ -1,7 +1,7 @@
 from update_data import *
 import requests 
 from bs4 import BeautifulSoup
-
+import json
 
 def get_number_stock_listed(stock):
     linkbase= 'https://www.cophieu68.vn/quote/profile.php?id=' + stock 
@@ -17,6 +17,35 @@ def get_number_stock_listed(stock):
             desired_value = td_tags[i + 1].text.strip()
             break
     return int(desired_value.replace(',', ''))
+
+
+def get_list_stock_price(stock):
+    list_stock = []
+    list_stock.append(stock)
+    linkstockquote ='https://price.tpbs.com.vn/api/SymbolApi/getStockQuote'
+    r = requests.post(linkstockquote,json = {"stocklist" : list_stock })
+    b= json.loads(r.text)
+    a = json.loads(b['content'])
+    for i in range (0,len(a)):
+        close=float(a[i]['mat'].replace(',', '')) 
+        return close*1000
+
+def get_stock_market_price(stock):
+    try:
+        return get_list_stock_price(stock)
+        
+    except requests.exceptions.RequestException as primary_exception:
+        try:
+            linkbase = 'https://www.cophieu68.vn/quote/summary.php?id=' + stock
+            print(f"lỗi truy cập tpbs")
+            r = requests.get(linkbase)
+            r.raise_for_status()  # Check for HTTP errors
+            soup = BeautifulSoup(r.text, 'html.parser')
+            div_tag = soup.find('div', id='stockname_close')
+            return float(div_tag.text) * 1000
+        except Exception as alternative_exception:
+            print(f"Lỗi truy cập TPBS: {alternative_exception}")
+            return 0
 
 def define_date_stock_on_account(time_matched):
     query_get_date_note_trade = 'select * from portfolio_datenottrading '
@@ -209,13 +238,7 @@ def update_nav_history(df_account,df_port, date):
             else:
                 insert_query = f"INSERT INTO tbnavhistoryaccount (date, account,stock_value, cashbalance, nav) VALUES ('{date}', '{account}', {stock_value}, {cashbalance}, {nav})"
                 postgres.execute_query(0, insert_query)
-
-def get_stock_market_price(stock):    
-    linkbase= 'https://www.cophieu68.vn/quote/summary.php?id=' + stock 
-    r =requests.get(linkbase)    
-    soup = BeautifulSoup(r.text,'html.parser')
-    div_tag = soup.find('div', id='stockname_close')    
-    return float(div_tag.text)*1000                
+               
 
 def update_market_price_port ():
     date = datetime.datetime.now().date()
@@ -344,7 +367,7 @@ def update_tbthpopenportsummary(name_file=None):
     print('Đã cập nhật bảng tbthpdealprofit')
     query_get_margin_fee = 'select sum(value) from tbthpmarginfee'
     margin_fee = float(postgres.query_data(0,query_get_margin_fee)[0][0])
-    total_profit = df_deal['net_profit'].sum() -margin_fee
+    total_profit = df_deal['net_profit'].sum() -margin_fee - 30500000000 #Lỗ deal YEG
     query_get_df_profit_date = 'select * from tbthprofitdate'
     df_get_df_profit_date = postgres.read_sql_to_df(0,query_get_df_profit_date)
     date_timestamp = pd.Timestamp(datetime.datetime(date.year, date.month, date.day))
