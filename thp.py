@@ -259,6 +259,8 @@ def update_market_price_port ():
         df_port = pd.merge(df_port, df_divident[['stocksymbol', 'value','ratio']], on=['stocksymbol'], how='left')
         df_port = df_port.loc[df_port['stocksymbol'] != 'YEG']
         df_port.fillna({'value': 0, 'ratio': 0}, inplace=True)
+        not_divident = ['DGC']
+        df_port.loc[df_port['stocksymbol'].isin(not_divident), ['divident','ratio']] = 0
         df_port['market_value'] = df_port['matchprice'] *df_port['sellable']
         df_port['profit'] = (df_port['matchprice'] -df_port['avgprice'])*df_port['sellable'] + df_port['value']
         df_port['profitratio'] = (df_port['matchprice']-df_port['avgprice']+ df_port['ratio']*10000)/df_port['avgprice'] -0.08/100*2 -0.1/100
@@ -273,6 +275,9 @@ def update_market_price_port ():
         return df_port
     else:
         print('Danh mục không có cổ phiếu nào')
+
+
+
 
 def update_profit_deal(df_all_trade,df_port, date):
     df_all_trade = df_all_trade.drop(columns=["CLIENT","id","date_receive", "remaining_qty","remaining_value","DATE"])
